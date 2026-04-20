@@ -621,12 +621,57 @@ INSTRUCTIONS:
 6. Tailor keyword emphasis and section ordering to match the job description
 7. Aim for 1 page; 2 pages only if substantial experience warrants it`;
 
+  const previewEl=document.getElementById('latex-preview');
+  previewEl.textContent='';
+  statusEl.innerHTML='<div class="status loading" id="stream-status">Generating LaTeX<span id="stream-dots">...</span></div>';
+
+  // Animate dots while streaming
+  let dotCount=0;
+  const dotTimer=setInterval(()=>{
+    dotCount=(dotCount+1)%4;
+    const d=document.getElementById('stream-dots');
+    if(d) d.textContent='.'.repeat(dotCount+1);
+  },400);
+
   try{
-    const latex=await callClaude([{role:'user',content:prompt}],4000);
+    const r=await fetch('/.netlify/functions/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:4000,
+        stream:true,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+
+    if(!r.ok){ throw new Error('Function error: '+r.status); }
+
+    const text=await r.text();
+    // Parse SSE lines from the buffered response
+    let latex='';
+    const lines=text.split('\n');
+    for(const line of lines){
+      if(!line.startsWith('data: ')) continue;
+      const data=line.slice(6).trim();
+      if(data==='[DONE]') break;
+      try{
+        const evt=JSON.parse(data);
+        if(evt.type==='content_block_delta' && evt.delta?.type==='text_delta'){
+          latex+=evt.delta.text;
+          // Update preview live as chunks arrive
+          previewEl.textContent=latex;
+          previewEl.scrollTop=previewEl.scrollHeight;
+        }
+      }catch(e){}
+    }
+
+    clearInterval(dotTimer);
     const clean=latex.replace(/^```(?:latex)?\n?/,'').replace(/\n?```$/,'').trim();
-    document.getElementById('latex-preview').textContent=clean;
+    previewEl.textContent=clean;
     statusEl.innerHTML='<div class="status success">Done! Copy, download, or open directly in Overleaf below.</div>';
   }catch(e){
+    clearInterval(dotTimer);
     statusEl.innerHTML='<div class="status error">Error: '+e.message+'</div>';
   }
 }
