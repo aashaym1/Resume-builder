@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GitHub → LaTeX Resume Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f5; --bg3: #eeeeee;
+    --text: #111111; --text2: #555555; --text3: #999999;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --success-bg: #eaf3de; --success-text: #27500a;
+    --error-bg: #fcebeb; --error-text: #a32d2d;
+    --info-bg: #e6f1fb; --info-text: #0c447c;
+    --purple-bg: #eeedfe; --purple-text: #3c3489;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --bg2: #252525; --bg3: #2e2e2e;
+      --text: #f0f0f0; --text2: #aaaaaa; --text3: #666666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --success-bg: #173404; --success-text: #c0dd97;
+      --error-bg: #501313; --error-text: #f09595;
+      --info-bg: #042c53; --info-text: #85b7eb;
+      --purple-bg: #26215c; --purple-text: #afa9ec;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .page { max-width: 720px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: var(--text2); margin-bottom: 2rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1rem; }
+  label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 4px; margin-top: 12px; }
+  label:first-of-type { margin-top: 0; }
+  input, textarea, select {
+    width: 100%; font-size: 14px; padding: 8px 10px;
+    border-radius: var(--radius); border: 0.5px solid var(--border2);
+    background: var(--bg2); color: var(--text);
+    font-family: inherit; outline: none; transition: border-color .15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--text3); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: var(--radius);
+    border: 0.5px solid var(--border2); background: transparent;
+    color: var(--text); font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: background .15s;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-primary:hover { opacity: .85; background: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-danger { border-color: var(--error-text); color: var(--error-text); }
+  .btn-danger:hover { background: var(--error-bg); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; min-width: 0; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 99px; border: 0.5px solid var(--border); font-size: 12px; background: var(--bg2); margin: 3px 2px; }
+  .tag button { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 14px; line-height: 1; padding: 0 1px; }
+  .status { font-size: 12px; padding: 7px 10px; border-radius: var(--radius); margin-top: 8px; }
+  .status.success { background: var(--success-bg); color: var(--success-text); }
+  .status.error { background: var(--error-bg); color: var(--error-text); }
+  .status.loading { background: var(--bg2); color: var(--text2); }
+  .repo-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .repo-item:last-child { border-bottom: none; }
+  .repo-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .repo-meta { font-size: 11px; color: var(--text2); }
+  .lang-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 99px; font-weight: 500; margin-left: 4px; }
+  .badge-blue { background: var(--info-bg); color: var(--info-text); }
+  .badge-green { background: var(--success-bg); color: var(--success-text); }
+  .badge-purple { background: var(--purple-bg); color: var(--purple-text); }
+  .progress-bar { height: 3px; background: var(--border); border-radius: 99px; margin: 8px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--text); border-radius: 99px; transition: width .4s; }
+  .steps { display: flex; margin-bottom: 2rem; border-bottom: 0.5px solid var(--border); }
+  .step { flex: 1; text-align: center; padding: 10px 4px; font-size: 12px; border-bottom: 2px solid transparent; color: var(--text2); cursor: pointer; transition: all .15s; white-space: nowrap; margin-bottom: -0.5px; }
+  .step.active { border-bottom-color: var(--text); color: var(--text); font-weight: 500; }
+  .step.done { color: var(--text3); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+  .preview-box {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 12px; background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 1rem; white-space: pre-wrap;
+    overflow-x: auto; max-height: 500px; overflow-y: auto;
+    line-height: 1.6; color: var(--text);
+  }
+  .drop-zone {
+    border: 1.5px dashed var(--border2); border-radius: var(--radius-lg);
+    padding: 2.5rem 1rem; text-align: center; cursor: pointer;
+    transition: all .15s; margin-top: 8px;
+  }
+  .drop-zone:hover, .drop-zone.drag-over { background: var(--bg2); border-color: var(--text3); }
+  .drop-zone-icon { font-size: 28px; margin-bottom: 8px; color: var(--text2); }
+  .drop-zone-text { font-size: 14px; color: var(--text2); font-weight: 500; }
+  .drop-zone-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+  .file-attached { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--success-bg); border-radius: var(--radius); margin-top: 8px; }
+  .file-attached-name { font-size: 13px; font-weight: 500; color: var(--success-text); flex: 1; }
+  .extracted-section { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; margin-top: 6px; }
+  .extracted-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+  .extracted-text { font-size: 12px; color: var(--text); line-height: 1.6; max-height: 80px; overflow-y: auto; }
+  .info-box { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .user-card-inner { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; border: 0.5px solid var(--border); }
+  .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 12px; }
+  .stat-box { background: var(--bg2); border-radius: var(--radius); padding: 8px 10px; text-align: center; }
+  .stat-val { font-size: 18px; font-weight: 500; }
+  .stat-label { font-size: 11px; color: var(--text2); }
+  .pat-row { display: flex; gap: 8px; }
+  .pat-row input { flex: 1; font-family: monospace; }
+  .toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+  .toolbar .section-title { margin-bottom: 0; flex: 1; }
+  code { font-family: monospace; font-size: 12px; background: var(--bg3); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>GitHub → LaTeX resume builder</h1>
+  <p class="subtitle">Connect private GitHub repos + upload your resume → tailored LaTeX output, compiled-ready for Overleaf.</p>
+
+  <div class="steps">
+    <div class="step active" id="step-tab-1" onclick="goStep(1)">1. Auth</div>
+    <div class="step" id="step-tab-2" onclick="goStep(2)">2. Repos</div>
+    <div class="step" id="step-tab-3" onclick="goStep(3)">3. Resume</div>
+    <div class="step" id="step-tab-4" onclick="goStep(4)">4. Info</div>
+    <div class="step" id="step-tab-5" onclick="goStep(5)">5. Role</div>
+    <div class="step" id="step-tab-6" onclick="goStep(6)">6. Export</div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="panel active" id="panel-1">
+    <div class="card">
+      <div class="section-title">GitHub personal access token</div>
+      <div class="info-box" style="margin-bottom:14px;">
+        <strong>How to get your token:</strong><br>
+        github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token<br><br>
+        Required scope: <code>repo</code> (reads private repos, commits, releases)<br><br>
+        Your token is only used to call <code>api.github.com</code> directly from your browser — it is never sent anywhere else.
+      </div>
+      <label>Paste token here</label>
+      <div class="pat-row">
+        <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" onkeydown="if(event.key==='Enter')connectToken()" />
+        <button class="btn btn-primary" onclick="connectToken()">Connect</button>
+      </div>
+      <div id="auth-status"></div>
+    </div>
+
+    <div class="card" id="user-card" style="display:none;">
+      <div class="user-card-inner">
+        <img class="avatar" id="user-avatar" src="" alt="" />
+        <div style="flex:1;">
+          <div id="user-name" style="font-size:15px;font-weight:500;"></div>
+          <div id="user-login" style="font-size:12px;color:var(--text2);"></div>
+        </div>
+        <span class="badge badge-purple">connected</span>
+        <button class="btn btn-sm btn-danger" onclick="disconnect()">Disconnect</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-val" id="stat-repos">—</div><div class="stat-label">repos</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-followers">—</div><div class="stat-label">followers</div></div>
+        <div class="stat-box"><div class="stat-val" id="stat-company" style="font-size:13px;">—</div><div class="stat-label">company</div></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="next-btn-1" style="display:none;" onclick="goStep(2)">Next: select repos →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="panel" id="panel-2">
+    <div class="card">
+      <div class="toolbar">
+        <div class="section-title">Your repositories</div>
+        <select id="repo-filter" onchange="applyFilter()" style="width:auto;font-size:12px;padding:5px 8px;">
+          <option value="all">All repos</option>
+          <option value="org">Company / org repos</option>
+          <option value="private">Private only</option>
+          <option value="public">Public only</option>
+          <option value="mine">Owned by me</option>
+        </select>
+        <button class="btn btn-sm" onclick="selectAll(true)">Select all</button>
+        <button class="btn btn-sm" onclick="selectAll(false)">Clear</button>
+      </div>
+      <div id="repo-list"><div style="font-size:13px;color:var(--text2);">Connect GitHub first.</div></div>
+    </div>
+    <div class="card">
+      <button class="btn btn-primary" onclick="fetchCommits()" style="width:100%;justify-content:center;">Analyze selected repos →</button>
+      <div id="commit-status"></div>
+      <div id="commit-summary" style="margin-top:12px;"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Next: upload resume →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" id="panel-3">
+    <div class="card">
+      <div class="section-title">Upload your existing resume</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:4px;">Claude extracts the best content and merges it with your GitHub data. Supports PDF, DOCX, and TXT.</p>
+      <div class="drop-zone" id="drop-zone"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="drop-zone-icon">↑</div>
+        <div class="drop-zone-text">Drop resume here, or click to browse</div>
+        <div class="drop-zone-sub">PDF · DOCX · TXT — max 5 MB</div>
+      </div>
+      <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" style="display:none;" onchange="handleFile(this.files[0])" />
+      <div id="file-status"></div>
+      <div id="extracted-preview" style="display:none;margin-top:12px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Extracted sections</div>
+        <div class="extracted-section"><div class="extracted-label">Experience</div><div class="extracted-text" id="ext-experience">—</div></div>
+        <div class="extracted-section"><div class="extracted-label">Skills</div><div class="extracted-text" id="ext-skills">—</div></div>
+        <div class="extracted-section"><div class="extracted-label">Education</div><div class="extracted-text" id="ext-education">—</div></div>
+        <div class="extracted-section"><div class="extracted-label">Summary / other</div><div class="extracted-text" id="ext-summary">—</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">Or paste resume text manually</div>
+      <textarea id="manual-resume" rows="6" placeholder="Paste your resume text here as an alternative..."></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(4)">Next: your details →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel" id="panel-4">
+    <div class="card">
+      <div class="section-title">Contact info</div>
+      <div class="row"><div><label>Full name</label><input type="text" id="name" /></div><div><label>Email</label><input type="text" id="email" /></div></div>
+      <div class="row"><div><label>Phone</label><input type="text" id="phone" placeholder="+1 (555) 000-0000" /></div><div><label>Location</label><input type="text" id="location" /></div></div>
+      <div class="row"><div><label>LinkedIn URL</label><input type="text" id="linkedin" /></div><div><label>Website / portfolio</label><input type="text" id="website" /></div></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Extra skills to highlight</div>
+      <label>Type a skill and press Enter</label>
+      <input type="text" id="skill-input" placeholder="e.g. Kubernetes" onkeydown="addSkill(event)" />
+      <div id="skills-tags" style="padding:6px 0;min-height:36px;"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(5)">Next: target role →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="panel" id="panel-5">
+    <div class="card">
+      <div class="section-title">Target job</div>
+      <label>Job title</label><input type="text" id="job-title" placeholder="e.g. Senior Backend Engineer" />
+      <label>Company (optional)</label><input type="text" id="job-company" placeholder="e.g. Stripe" />
+      <label>Job description — paste the full text for best tailoring</label>
+      <textarea id="job-desc" rows="8" placeholder="Paste the job description here..."></textarea>
+    </div>
+    <div class="card">
+      <div class="section-title">LaTeX template style</div>
+      <select id="template-style">
+        <option value="modern">Modern (clean single column)</option>
+        <option value="classic">Classic (two column)</option>
+        <option value="minimal">Minimal (ATS-safe, text-only)</option>
+        <option value="academic">Academic (publications-ready)</option>
+      </select>
+      <div class="info-box" style="margin-top:10px;">All templates compile with <code>pdflatex</code> or <code>xelatex</code>. You can paste the output directly into <strong>Overleaf</strong> (free) to get a PDF instantly.</div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="goStep(4)">← Back</button>
+      <button class="btn btn-primary" onclick="generateResume()">Generate LaTeX resume ↗</button>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="panel" id="panel-6">
+    <div class="card">
+      <div class="toolbar">
+        <div class="section-title">Generated LaTeX</div>
+        <button class="btn btn-sm" onclick="copyLatex()">Copy all</button>
+        <button class="btn btn-sm" onclick="downloadLatex()">Download .tex</button>
+        <button class="btn btn-sm btn-primary" onclick="openOverleaf()">Open in Overleaf ↗</button>
+      </div>
+      <div id="gen-status"></div>
+      <pre class="preview-box" id="latex-preview">Your LaTeX will appear here...</pre>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="goStep(5)">← Regenerate</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ANTHROPIC_KEY = '';
+
+const langColors={JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',Rust:'#dea584',Go:'#00ADD8',Java:'#b07219','C++':'#f34b7d',Ruby:'#701516',Swift:'#F05138',Shell:'#89e051',HTML:'#e34c26',CSS:'#563d7c',Vue:'#41b883',Dart:'#00B4AB',Kotlin:'#A97BFF'};
+
+let S={token:'',user:null,repos:[],allRepos:[],selected:new Set(),commitData:{},skills:[],resumeText:'',resumeExtracted:null};
+
+function goStep(n){
+  for(let i=1;i<=6;i++){
+    document.getElementById('panel-'+i).classList.toggle('active',i===n);
+    const t=document.getElementById('step-tab-'+i);
+    t.classList.remove('active','done');
+    if(i===n) t.classList.add('active');
+    else if(i<n) t.classList.add('done');
+  }
+  window.scrollTo(0,0);
+}
+
+async function ghFetch(url){
+  const r=await fetch('/.netlify/functions/github',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({url:url,token:S.token})
+  });
+  return r;
+}
+
+async function connectToken(){
+  const tok=document.getElementById('pat-input').value.trim();
+  if(!tok) return;
+  const el=document.getElementById('auth-status');
+  el.innerHTML='<div class="status loading">Verifying token with GitHub...</div>';
+  try{
+    S.token=tok; // set BEFORE the request so ghFetch sends it
+    const r=await ghFetch('https://api.github.com/user');
+    if(r.status===401){ S.token=''; throw new Error('Token rejected (401) — check the token is correct and has the repo scope.'); }
+    if(!r.ok){ S.token=''; throw new Error('GitHub error: '+r.status); }
+    const user=await r.json();
+    S.user=user;
+    document.getElementById('pat-input').value='';
+    el.innerHTML='<div class="status success">Connected successfully!</div>';
+    showUserCard(user);
+    document.getElementById('user-card').style.display='block';
+    document.getElementById('next-btn-1').style.display='inline-flex';
+    autoFetchRepos();
+  }catch(e){
+    el.innerHTML='<div class="status error">'+e.message+'</div>';
+  }
+}
+
+function showUserCard(u){
+  document.getElementById('user-avatar').src=u.avatar_url;
+  document.getElementById('user-name').textContent=u.name||u.login;
+  document.getElementById('user-login').textContent='@'+u.login;
+  document.getElementById('stat-repos').textContent=u.public_repos;
+  document.getElementById('stat-followers').textContent=u.followers;
+  document.getElementById('stat-company').textContent=u.company||'—';
+  if(u.name) document.getElementById('name').value=u.name;
+  if(u.email) document.getElementById('email').value=u.email;
+  if(u.blog) document.getElementById('website').value=u.blog;
+  if(u.location) document.getElementById('location').value=u.location;
+}
+
+function disconnect(){
+  S={...S,token:'',user:null,repos:[],allRepos:[],selected:new Set(),commitData:{}};
+  document.getElementById('user-card').style.display='none';
+  document.getElementById('next-btn-1').style.display='none';
+  document.getElementById('auth-status').innerHTML='';
+  document.getElementById('repo-list').innerHTML='<div style="font-size:13px;color:var(--text2);">Connect GitHub first.</div>';
+}
+
+async function autoFetchRepos(){
+  try{
+    // Fetch ALL repos the user has access to: owned + member (company repos you contribute to)
+    const [r1, r2] = await Promise.all([
+      ghFetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member'),
+      ghFetch('https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member&page=2')
+    ]);
+    const d1 = r1.ok ? await r1.json() : [];
+    const d2 = r2.ok ? await r2.json() : [];
+    const all = [...d1, ...d2];
+    // dedupe by id
+    const seen = new Set();
+    const repos = all.filter(r => { if(seen.has(r.id)) return false; seen.add(r.id); return true; });
+    S.allRepos=repos; S.repos=repos;
+    S.selected=new Set(repos.slice(0,10).map(r=>r.name));
+    renderRepos();
+    // update repo count in stats card
+    const sc = document.getElementById('stat-repos');
+    if(sc) sc.textContent = repos.length;
+  }catch(e){ console.error('autoFetchRepos error:', e); }
+}
+
+function applyFilter(){
+  const f=document.getElementById('repo-filter').value;
+  const login=S.user?.login||'';
+  if(f==='private') S.repos=S.allRepos.filter(r=>r.private);
+  else if(f==='public') S.repos=S.allRepos.filter(r=>!r.private);
+  else if(f==='mine') S.repos=S.allRepos.filter(r=>r.owner?.login===login);
+  else if(f==='org') S.repos=S.allRepos.filter(r=>r.owner?.login!==login);
+  else S.repos=S.allRepos;
+  renderRepos();
+}
+
+function renderRepos(){
+  const list=document.getElementById('repo-list');
+  if(!S.repos.length){list.innerHTML='<div style="font-size:13px;color:var(--text2);">No repos found.</div>';return;}
+  list.innerHTML=S.repos.map(repo=>{
+    const lang=repo.language||'—';
+    const color=langColors[lang]||'#888';
+    const chk=S.selected.has(repo.name)?'checked':'';
+    const priv=repo.private?'<span class="badge badge-purple">private</span>':'';
+    return `<div class="repo-item">
+      <input type="checkbox" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;" ${chk} onchange="toggleRepo('${repo.name}',this.checked)" />
+      <div style="flex:1;min-width:0;">
+        <div class="repo-name">${repo.name}${priv}</div>
+        <div class="repo-meta"><span class="lang-dot" style="background:${color}"></span>${lang} · ⭐${repo.stargazers_count} · ${new Date(repo.updated_at).toLocaleDateString()}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleRepo(name,checked){if(checked)S.selected.add(name);else S.selected.delete(name);}
+function selectAll(v){S.repos.forEach(r=>v?S.selected.add(r.name):S.selected.delete(r.name));renderRepos();}
+
+async function fetchCommits(){
+  const sel=[...S.selected];
+  if(!sel.length){document.getElementById('commit-status').innerHTML='<div class="status error">Select at least one repo.</div>';return;}
+  const statusEl=document.getElementById('commit-status');
+  statusEl.innerHTML='<div class="status loading">Analyzing '+sel.length+' repos...<div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div></div>';
+  S.commitData={}; let done=0;
+  const login=S.user?.login;
+  await Promise.all(sel.map(async name=>{
+    try{
+      // Use the repo's actual owner (org or personal)
+      const repo=S.repos.find(r=>r.name===name);
+      const owner=repo?.owner?.login||login;
+      // Paginate commits to get ALL of them, not just 50
+      async function getAllCommits(){
+        let page=1, all=[];
+        while(true){
+          const r=await ghFetch(`https://api.github.com/repos/${owner}/${name}/commits?author=${login}&per_page=100&page=${page}`);
+          if(!r.ok) break;
+          const batch=await r.json();
+          if(!Array.isArray(batch)||batch.length===0) break;
+          all=[...all,...batch];
+          if(batch.length<100) break; // last page
+          page++;
+        }
+        return all;
+      }
+      const[commits,releases]=await Promise.all([
+        getAllCommits(),
+        ghFetch(`https://api.github.com/repos/${owner}/${name}/releases?per_page=20`).then(r=>r.ok?r.json():[])
+      ]);
+      S.commitData[name]={commits,releases,repo};
+    }catch(e){S.commitData[name]={commits:[],releases:[],repo:null};}
+    done++;
+    const f=document.getElementById('prog-fill');
+    if(f) f.style.width=Math.round(done/sel.length*100)+'%';
+  }));
+  statusEl.innerHTML='<div class="status success">Done — '+sel.length+' repos analyzed.</div>';
+  document.getElementById('commit-summary').innerHTML=Object.entries(S.commitData).map(([name,data])=>{
+    const r=data.repo;
+    return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);">
+      <div style="flex:1;min-width:0;font-size:13px;font-weight:500;">${name}${r?.private?'<span class="badge badge-purple">private</span>':''}<span class="badge badge-blue">${r?.language||'?'}</span>${data.releases.length?'<span class="badge badge-green">changelog</span>':''}</div>
+      <div style="font-size:12px;color:var(--text2);">${data.commits.length} commits</div>
+    </div>`;
+  }).join('');
+}
+
+function onDragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag-over');}
+function onDragLeave(){document.getElementById('drop-zone').classList.remove('drag-over');}
+function onDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+
+async function handleFile(file){
+  if(!file) return;
+  if(file.size>5*1024*1024){document.getElementById('file-status').innerHTML='<div class="status error">File too large (max 5MB).</div>';return;}
+  const statusEl=document.getElementById('file-status');
+  statusEl.innerHTML=`<div class="file-attached"><div class="file-attached-name">${file.name}</div><div style="font-size:11px;color:var(--success-text);">${(file.size/1024).toFixed(0)} KB</div></div><div class="status loading" style="margin-top:6px;">Reading file...</div>`;
+  try{
+    let text='';
+    if(file.name.toLowerCase().endsWith('.pdf')){
+      text=await readPDFWithClaude(file);
+    } else if(file.name.toLowerCase().match(/\.docx?$/)){
+      const buf=await file.arrayBuffer();
+      const result=await mammoth.extractRawText({arrayBuffer:buf});
+      text=result.value||'';
+    } else {
+      text=await file.text();
+    }
+    S.resumeText=text;
+    statusEl.innerHTML=`<div class="file-attached"><div class="file-attached-name">${file.name}</div><div style="font-size:11px;color:var(--success-text);">${(file.size/1024).toFixed(0)} KB · ready</div></div>`;
+    await extractResumeWithClaude(text);
+  }catch(e){
+    statusEl.innerHTML='<div class="status error">Could not read file: '+e.message+'</div>';
+  }
+}
+
+async function callClaude(messages,maxTokens=1500){
+  const r=await fetch('/.netlify/functions/claude',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,messages})
+  });
+  const data=await r.json();
+  return data.content?.find(b=>b.type==='text')?.text||'';
+}
+
+async function readPDFWithClaude(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=async(e)=>{
+      try{
+        const base64=e.target.result.split(',')[1];
+        const apiKey=document.getElementById('claude-key')?.value?.trim()||ANTHROPIC_KEY;
+        const headers={'Content-Type':'application/json'};
+        if(apiKey) headers['x-api-key']=apiKey;
+        const r=await fetch('/.netlify/functions/claude',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+            {type:'text',text:'Extract all text from this resume PDF. Return only the raw text content.'}
+          ]}]})
+        });
+        const data=await r.json();
+        resolve(data.content?.find(b=>b.type==='text')?.text||'');
+      }catch(err){reject(err);}
+    };
+    reader.onerror=()=>reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function extractResumeWithClaude(text){
+  const statusEl=document.getElementById('file-status');
+  statusEl.innerHTML+='<div class="status loading" id="parse-status" style="margin-top:6px;">Claude is parsing your resume...</div>';
+  try{
+    let raw=await callClaude([{role:'user',content:`Parse this resume. Return ONLY a raw JSON object (no markdown, no backticks) with keys: experience, skills, education, summary. Each value is a concise plain-text summary of that section.\n\nResume:\n${text.slice(0,4000)}`}]);
+    raw=raw.replace(/^```(?:json)?\n?/,'').replace(/\n?```$/,'').trim();
+    const parsed=JSON.parse(raw);
+    S.resumeExtracted=parsed;
+    document.getElementById('ext-experience').textContent=parsed.experience||'—';
+    document.getElementById('ext-skills').textContent=parsed.skills||'—';
+    document.getElementById('ext-education').textContent=parsed.education||'—';
+    document.getElementById('ext-summary').textContent=parsed.summary||'—';
+    document.getElementById('extracted-preview').style.display='block';
+    const ps=document.getElementById('parse-status');
+    if(ps){ps.className='status success';ps.textContent='Resume parsed — sections extracted below.';}
+  }catch(e){
+    const ps=document.getElementById('parse-status');
+    if(ps){ps.className='status error';ps.textContent='Parse error: '+e.message;}
+  }
+}
+
+function addSkill(e){
+  if(e.key!=='Enter') return;
+  const input=document.getElementById('skill-input');
+  const v=input.value.trim();
+  if(!v||S.skills.includes(v)){input.value='';return;}
+  S.skills.push(v); input.value=''; renderSkills();
+}
+function removeSkill(s){S.skills=S.skills.filter(x=>x!==s);renderSkills();}
+function renderSkills(){
+  document.getElementById('skills-tags').innerHTML=S.skills.map(s=>`<span class="tag">${s}<button onclick="removeSkill('${s}')">×</button></span>`).join('');
+}
+
+async function generateResume(){
+  goStep(6);
+  const statusEl=document.getElementById('gen-status');
+  statusEl.innerHTML='<div class="status loading">Claude is generating your tailored LaTeX resume...</div>';
+  const login=S.user?.login||'';
+  const name=document.getElementById('name').value.trim()||login;
+  const email=document.getElementById('email').value.trim();
+  const phone=document.getElementById('phone').value.trim();
+  const location=document.getElementById('location').value.trim();
+  const linkedin=document.getElementById('linkedin').value.trim();
+  const website=document.getElementById('website').value.trim()||'github.com/'+login;
+  const manual=document.getElementById('manual-resume').value.trim();
+  const jobTitle=document.getElementById('job-title').value.trim();
+  const jobCompany=document.getElementById('job-company').value.trim();
+  const jobDesc=document.getElementById('job-desc').value.trim();
+  const template=document.getElementById('template-style').value;
+  const extraSkills=S.skills.join(', ');
+
+  const resumeCtx=S.resumeExtracted
+    ?`UPLOADED RESUME:\nExperience: ${S.resumeExtracted.experience||''}\nSkills: ${S.resumeExtracted.skills||''}\nEducation: ${S.resumeExtracted.education||''}\nSummary: ${S.resumeExtracted.summary||''}`
+    :manual?`EXISTING RESUME TEXT:\n${manual}`:'No existing resume provided — infer from GitHub activity.';
+
+  const projects=Object.entries(S.commitData).map(([name,data])=>{
+    const recent=data.commits.slice(0,6).map(c=>c.commit?.message?.split('\n')[0]).filter(Boolean).join(' | ');
+    const rels=data.releases.slice(0,2).map(r=>(r.name||'')+': '+(r.body||'').slice(0,150)).filter(Boolean).join(' | ');
+    const r=data.repo;
+    return`Repo: ${name} | Private: ${r?.private} | Lang: ${r?.language||'?'} | Stars: ${r?.stargazers_count||0} | Desc: ${r?.description||''} | Recent commits: ${recent} | Releases: ${rels}`;
+  }).join('\n');
+
+  const prompt=`You are an expert resume writer and LaTeX developer. Generate a complete, standalone, compilable LaTeX resume.
+
+TEMPLATE: ${template} style. Use ONLY standard LaTeX packages available on any system: geometry, hyperref, titlesec, enumitem, xcolor, parskip, fontenc, inputenc. Do NOT use moderncv or any non-standard class.
+
+CANDIDATE:
+Name: ${name}
+Email: ${email} | Phone: ${phone} | Location: ${location}
+LinkedIn: ${linkedin} | GitHub/Website: ${website}
+
+${resumeCtx}
+
+EXTRA SKILLS: ${extraSkills}
+
+GITHUB PROJECT DATA:
+${projects||'No GitHub repos selected.'}
+
+TARGET ROLE: ${jobTitle}${jobCompany?' at '+jobCompany:''}
+JOB DESCRIPTION:
+${jobDesc||'General software engineering role — emphasize breadth and impact.'}
+
+INSTRUCTIONS:
+1. Output ONLY raw compilable LaTeX — no markdown fences, no preamble explanation, start with \\documentclass
+2. INTELLIGENTLY MERGE: take the strongest achievements from the uploaded resume + use GitHub commit data as additional evidence of skills and impact
+3. Skills section: combine resume skills + GitHub languages + extra skills, grouped by category (Languages, Frameworks, Tools, Cloud, etc.)
+4. Projects section: 2-3 impactful bullet points per GitHub repo, using commit messages and release notes as evidence. Quantify where possible.
+5. Experience: use uploaded resume roles with strong action verbs. Where GitHub commits corroborate a claim, strengthen the bullet.
+6. Tailor keyword emphasis and section ordering to match the job description
+7. Aim for 1 page; 2 pages only if substantial experience warrants it`;
+
+  try{
+    const latex=await callClaude([{role:'user',content:prompt}],4000);
+    const clean=latex.replace(/^```(?:latex)?\n?/,'').replace(/\n?```$/,'').trim();
+    document.getElementById('latex-preview').textContent=clean;
+    statusEl.innerHTML='<div class="status success">Done! Copy, download, or open directly in Overleaf below.</div>';
+  }catch(e){
+    statusEl.innerHTML='<div class="status error">Error: '+e.message+'</div>';
+  }
+}
+
+function copyLatex(){
+  const text=document.getElementById('latex-preview').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=event.target; btn.textContent='Copied!';
+    setTimeout(()=>btn.textContent='Copy all',2000);
+  });
+}
+
+function downloadLatex(){
+  const text=document.getElementById('latex-preview').textContent;
+  const name=document.getElementById('name').value.trim().replace(/\s+/g,'_')||'resume';
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text);
+  a.download=name+'_resume.tex'; a.click();
+}
+
+function openOverleaf(){
+  const text=document.getElementById('latex-preview').textContent;
+  const form=document.createElement('form');
+  form.method='POST'; form.action='https://www.overleaf.com/docs'; form.target='_blank';
+  const inp=document.createElement('input');
+  inp.type='hidden'; inp.name='snip'; inp.value=text;
+  form.appendChild(inp); document.body.appendChild(form);
+  form.submit(); document.body.removeChild(form);
+}
+</script>
+</body>
+</html>
